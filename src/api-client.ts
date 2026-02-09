@@ -106,3 +106,51 @@ export async function apiRequest(
 
   return json.data;
 }
+
+/**
+ * Like apiRequest, but returns raw response text instead of parsed JSON.
+ * Used for endpoints that return non-JSON data (e.g. CSV export).
+ */
+export async function rawApiRequest(
+  method: string,
+  endpoint: string,
+  params?: Record<string, string>,
+): Promise<string> {
+  let url = `${BASE_URL}/${endpoint.replace(/^\//, "")}`;
+
+  if (params && Object.keys(params).length > 0) {
+    const searchParams = new URLSearchParams(params);
+    url += `?${searchParams.toString()}`;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const options: RequestInit = {
+    method,
+    signal: controller.signal,
+    headers: {
+      Authorization: AUTH_HEADER,
+      "Content-Type": "application/json",
+      "User-Agent": "TrackingTimeMCP/1.0",
+    },
+  };
+
+  let res: Response;
+  try {
+    res = await fetch(url, options);
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new TrackingTimeError(0, "Request timed out after 30s. TrackingTime may be unavailable.");
+    }
+    throw new TrackingTimeError(0, `Network error: ${err instanceof Error ? err.message : String(err)}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (!res.ok) {
+    throw new TrackingTimeError(res.status, `TrackingTime returned HTTP ${res.status}`);
+  }
+
+  return await res.text();
+}

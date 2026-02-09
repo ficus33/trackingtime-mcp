@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { apiRequest, TrackingTimeError } from "./api-client.js";
+import { apiRequest, rawApiRequest, TrackingTimeError } from "./api-client.js";
 
 function formatError(err: unknown): string {
   if (err instanceof TrackingTimeError) {
@@ -409,14 +409,15 @@ export function registerTools(server: McpServer) {
       title: "Add Time Entry",
       description:
         "Add a manual time entry (event) to TrackingTime. " +
-        "Duration is in seconds (e.g. 3600 = 1 hour).",
+        "Duration is in seconds (e.g. 3600 = 1 hour). " +
+        "Both start and end datetimes are required by the API.",
       inputSchema: {
         duration: z.number().describe("Duration in seconds (required)"),
         user_id: z.number().describe("User ID (required)"),
+        start: z.string().describe("Start datetime (yyyy-MM-dd HH:mm:ss) — required"),
+        end: z.string().describe("End datetime (yyyy-MM-dd HH:mm:ss) — required"),
         task_id: z.number().optional().describe("Task ID"),
         project_id: z.number().optional().describe("Project ID"),
-        start: z.string().optional().describe("Start datetime (yyyy-MM-dd HH:mm:ss)"),
-        end: z.string().optional().describe("End datetime (yyyy-MM-dd HH:mm:ss)"),
         notes: z.string().optional().describe("Notes for the time entry"),
       },
       annotations: {
@@ -426,13 +427,11 @@ export function registerTools(server: McpServer) {
         openWorldHint: true,
       },
     },
-    async ({ duration, user_id, task_id, project_id, start, end, notes }) => {
+    async ({ duration, user_id, start, end, task_id, project_id, notes }) => {
       try {
-        const body: Record<string, unknown> = { duration, user_id };
+        const body: Record<string, unknown> = { duration, user_id, start, end };
         if (task_id !== undefined) body.task_id = task_id;
         if (project_id !== undefined) body.project_id = project_id;
-        if (start) body.start = start;
-        if (end) body.end = end;
         if (notes) body.notes = notes;
         return toolResult(await apiRequest("POST", "/events/add", undefined, body));
       } catch (err) {
@@ -710,11 +709,11 @@ export function registerTools(server: McpServer) {
     {
       title: "Update Customer",
       description:
-        "Update an existing customer/client. Only include fields you want to change. " +
-        "Requires admin or project manager role.",
+        "Update an existing customer/client. The name field is required by the API even " +
+        "if you only want to change other fields. Requires admin or project manager role.",
       inputSchema: {
         id: z.number().describe("Customer ID to update"),
-        name: z.string().optional().describe("New customer name (must be unique)"),
+        name: z.string().describe("Customer name (required by API, even if unchanged)"),
         notes: z.string().optional().describe("Updated notes"),
         contact_name: z.string().optional().describe("Updated contact name"),
         contact_email: z.string().optional().describe("Updated contact email"),
@@ -728,8 +727,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ id, name, notes, contact_name, contact_email }) => {
       try {
-        const body: Record<string, unknown> = {};
-        if (name) body.name = name;
+        const body: Record<string, unknown> = { name };
         if (notes) body.notes = notes;
         if (contact_name) body.contact_name = contact_name;
         if (contact_email) body.contact_email = contact_email;
@@ -795,7 +793,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ id }) => {
       try {
-        return toolResult(await apiRequest("POST", `/projects/open/${id}`));
+        return toolResult(await apiRequest("PUT", `/projects/open/${id}`));
       } catch (err) {
         return errorResult(err);
       }
@@ -825,7 +823,7 @@ export function registerTools(server: McpServer) {
     async ({ project_ids }) => {
       try {
         const data = project_ids.map((id) => ({ id }));
-        return toolResult(await apiRequest("POST", "/projects/times", undefined, data));
+        return toolResult(await apiRequest("POST", "/projects/times", undefined, { data }));
       } catch (err) {
         return errorResult(err);
       }
@@ -1076,7 +1074,8 @@ export function registerTools(server: McpServer) {
         if (id !== undefined) params.id = String(id);
         if (from) params.from = from;
         if (to) params.to = to;
-        return toolResult(await apiRequest("GET", "/events/export", params));
+        const csv = await rawApiRequest("GET", "/events/export", params);
+        return { content: [{ type: "text" as const, text: csv }] };
       } catch (err) {
         return errorResult(err);
       }
@@ -1103,8 +1102,8 @@ export function registerTools(server: McpServer) {
     },
     async ({ entry_ids }) => {
       try {
-        const data = entry_ids.map((id) => ({ id }));
-        return toolResult(await apiRequest("PUT", "/events/billed", undefined, data));
+        const data = JSON.stringify(entry_ids.map((id) => ({ id })));
+        return toolResult(await apiRequest("PUT", "/events/billed", undefined, { data }));
       } catch (err) {
         return errorResult(err);
       }
@@ -1131,8 +1130,8 @@ export function registerTools(server: McpServer) {
     },
     async ({ entry_ids }) => {
       try {
-        const data = entry_ids.map((id) => ({ id }));
-        return toolResult(await apiRequest("PUT", "/events/not_billed", undefined, data));
+        const data = JSON.stringify(entry_ids.map((id) => ({ id })));
+        return toolResult(await apiRequest("PUT", "/events/not_billed", undefined, { data }));
       } catch (err) {
         return errorResult(err);
       }
