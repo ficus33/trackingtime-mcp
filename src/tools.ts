@@ -300,7 +300,7 @@ export function registerTools(server: McpServer) {
         timezone: z
           .string()
           .optional()
-          .describe("Timezone offset, e.g. GMT+11:00 (default: GMT+11:00)"),
+          .describe("Timezone offset, e.g. GMT+10:00"),
         stop_running_task: z
           .boolean()
           .optional()
@@ -338,7 +338,7 @@ export function registerTools(server: McpServer) {
       inputSchema: {
         id: z.number().describe("Task ID to stop tracking"),
         date: z.string().describe("Stop datetime (yyyy-MM-dd HH:mm:ss)"),
-        timezone: z.string().optional().describe("Timezone offset, e.g. GMT+11:00"),
+        timezone: z.string().optional().describe("Timezone offset, e.g. GMT+10:00"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1138,10 +1138,8 @@ export function registerTools(server: McpServer) {
     },
   );
 
-  // ── Commented-out tools (uncomment as needed) ──────────────────────
-  // Each block below is a complete tool registration ready to activate.
+  // ── Additional tools ──────────────────────────────────────────────
 
-  /*
   // tt_list_project_ids — lightweight list of project IDs only
   server.registerTool(
     "tt_list_project_ids",
@@ -1171,9 +1169,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_delete_project — permanently delete a project
   server.registerTool(
     "tt_delete_project",
@@ -1206,9 +1202,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_merge_projects — merge one project into another
   server.registerTool(
     "tt_merge_projects",
@@ -1238,9 +1232,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_update_project_preferences — set favorite, default view, etc.
   server.registerTool(
     "tt_update_project_preferences",
@@ -1274,9 +1266,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_sort_tasks — reorder tasks
   server.registerTool(
     "tt_sort_tasks",
@@ -1306,9 +1296,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_get_task_times — accumulated times for multiple tasks
   server.registerTool(
     "tt_get_task_times",
@@ -1336,9 +1324,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_import_tasks — bulk import tasks
   server.registerTool(
     "tt_import_tasks",
@@ -1377,9 +1363,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_get_user — get single user details
   server.registerTool(
     "tt_get_user",
@@ -1407,9 +1391,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_update_user — update user profile
   server.registerTool(
     "tt_update_user",
@@ -1439,9 +1421,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_archive_user — deactivate a user
   server.registerTool(
     "tt_archive_user",
@@ -1466,9 +1446,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_reactivate_user — reactivate an archived user
   server.registerTool(
     "tt_reactivate_user",
@@ -1493,9 +1471,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_get_user_tasks — list a user's tasks grouped by project
   server.registerTool(
     "tt_get_user_tasks",
@@ -1526,9 +1502,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_get_user_tracking — see what a user is currently tracking
   server.registerTool(
     "tt_get_user_tracking",
@@ -1553,7 +1527,6 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
   // 35. tt_get_user_trackables
   server.registerTool(
@@ -1589,7 +1562,6 @@ export function registerTools(server: McpServer) {
     },
   );
 
-  /*
   // tt_get_user_projects — list projects assigned to a user
   server.registerTool(
     "tt_get_user_projects",
@@ -1614,9 +1586,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_invite_users — invite people to your TrackingTime account
   server.registerTool(
     "tt_invite_users",
@@ -1646,9 +1616,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_get_customer — get single customer details
   server.registerTool(
     "tt_get_customer",
@@ -1673,9 +1641,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_delete_customer — permanently delete a customer
   server.registerTool(
     "tt_delete_customer",
@@ -1701,9 +1667,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_archive_customer — archive a customer
   server.registerTool(
     "tt_archive_customer",
@@ -1728,9 +1692,7 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 
-  /*
   // tt_reactivate_customer — reactivate an archived customer
   server.registerTool(
     "tt_reactivate_customer",
@@ -1755,5 +1717,4 @@ export function registerTools(server: McpServer) {
       }
     },
   );
-  */
 }

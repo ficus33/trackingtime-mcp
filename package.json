@@ -1,6 +1,6 @@
 {
   "name": "trackingtime-mcp",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "MCP server for TrackingTime API v4 — manage projects, tasks, time tracking, staff, and customers via AI assistants",
   "type": "module",
   "main": "dist/index.js",

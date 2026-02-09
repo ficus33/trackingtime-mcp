@@ -2,41 +2,19 @@
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) server that connects AI assistants like Claude to the [TrackingTime](https://trackingtime.co/) API v4. Manage projects, tasks, time tracking, staff assignments, and customers through natural language.
 
-## Setup
+## Quick Start
 
 ### 1. Get your TrackingTime credentials
 
 - **App Password:** TrackingTime → Manage → User Settings → Apps & Integrations → create a new App Password
 - **Account ID:** Visible in your TrackingTime URL when logged in, or in account settings
 
-### 2. Install and build
-
-```bash
-git clone https://github.com/ficus33/trackingtime-mcp.git
-cd trackingtime-mcp
-npm install
-npm run build
-```
-
-### 3. Configure credentials
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` with your values:
-
-```
-TT_APP_PASSWORD=your-app-password
-TT_ACCOUNT_ID=your-account-id
-```
-
-### 4. Add to your AI assistant
+### 2. Add to your AI assistant
 
 **Claude Code:**
 
 ```bash
-claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
+claude mcp add trackingtime -e TT_APP_PASSWORD=your-app-password -e TT_ACCOUNT_ID=your-account-id -- npx trackingtime-mcp
 ```
 
 **Claude Desktop** (`claude_desktop_config.json`):
@@ -45,14 +23,36 @@ claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
 {
   "mcpServers": {
     "trackingtime": {
-      "command": "node",
-      "args": ["/path/to/trackingtime-mcp/dist/index.js"]
+      "command": "npx",
+      "args": ["trackingtime-mcp"],
+      "env": {
+        "TT_APP_PASSWORD": "your-app-password",
+        "TT_ACCOUNT_ID": "your-account-id"
+      }
     }
   }
 }
 ```
 
-Restart your assistant after adding. The server reads credentials from the `.env` file automatically.
+Restart your assistant after adding.
+
+### Alternative: Install from source
+
+If you prefer to clone and build locally:
+
+```bash
+git clone https://github.com/ficus33/trackingtime-mcp.git
+cd trackingtime-mcp
+npm install
+npm run build
+cp .env.example .env   # then edit .env with your credentials
+```
+
+Then point your assistant at the local build:
+
+```bash
+claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
+```
 
 ## Tools
 
@@ -61,14 +61,18 @@ Restart your assistant after adding. The server reads credentials from the `.env
 | Tool | Description |
 |------|-------------|
 | `tt_list_projects` | List projects (filter: ACTIVE/ARCHIVED/ALL/FOLLOWING) |
+| `tt_list_project_ids` | List only project IDs (lightweight, for batch operations) |
 | `tt_search_projects` | Search projects and tasks by keyword |
 | `tt_create_project` | Create a new project |
 | `tt_update_project` | Edit project name, customer, or service |
+| `tt_update_project_preferences` | Set favorite, default view, show closed tasks |
 | `tt_get_project` | Get single project with detail flags |
-| `tt_archive_project` | Archive a project (reversible) |
-| `tt_reopen_project` | Reopen an archived project |
 | `tt_get_project_times` | Get accumulated time for multiple projects |
 | `tt_get_project_users` | See which staff are on a project |
+| `tt_archive_project` | Archive a project (reversible) |
+| `tt_reopen_project` | Reopen an archived project |
+| `tt_delete_project` | Permanently delete a project |
+| `tt_merge_projects` | Merge one project into another |
 
 ### Tasks
 
@@ -78,10 +82,13 @@ Restart your assistant after adding. The server reads credentials from the `.env
 | `tt_create_task` | Create a task with assignees, due date, estimate |
 | `tt_update_task` | Edit task or reassign staff |
 | `tt_get_task` | Get single task details |
+| `tt_get_task_times` | Get accumulated times for multiple tasks |
+| `tt_search_tasks` | Search tasks by name within projects |
+| `tt_sort_tasks` | Reorder tasks by sort index |
+| `tt_import_tasks` | Bulk import tasks with preview mode |
 | `tt_close_task` | Mark a task as complete |
 | `tt_reopen_task` | Reopen a completed task |
 | `tt_delete_task` | Delete a task |
-| `tt_search_tasks` | Search tasks by name within projects |
 
 ### Time Tracking
 
@@ -109,33 +116,40 @@ Restart your assistant after adding. The server reads credentials from the `.env
 | Tool | Description |
 |------|-------------|
 | `tt_list_users` | List all staff (find user IDs) |
+| `tt_get_user` | Get single user details |
+| `tt_update_user` | Update user profile |
+| `tt_get_user_tasks` | List a user's tasks grouped by project |
+| `tt_get_user_tracking` | See what a user is currently tracking |
+| `tt_get_user_trackables` | All projects and tasks assigned to a user |
+| `tt_get_user_projects` | List projects assigned to a user |
 | `tt_assign_user_projects` | Assign staff to projects |
 | `tt_remove_user_projects` | Remove staff from projects |
-| `tt_get_user_trackables` | All projects and tasks assigned to a user |
+| `tt_archive_user` | Deactivate a user (admin only) |
+| `tt_reactivate_user` | Reactivate an archived user |
+| `tt_invite_users` | Invite people by email |
 
 ### Customers
 
 | Tool | Description |
 |------|-------------|
 | `tt_list_customers` | List customers (filter: ACTIVE/ARCHIVED/ALL) |
+| `tt_get_customer` | Get single customer details |
 | `tt_create_customer` | Create a new customer |
 | `tt_update_customer` | Edit customer details |
+| `tt_delete_customer` | Permanently delete a customer |
+| `tt_archive_customer` | Archive a customer (reversible) |
+| `tt_reactivate_customer` | Reactivate an archived customer |
 
-### Additional tools (commented out)
+### Reducing tool count
 
-The source includes ~20 more pre-built tools that are commented out to keep the active tool count manageable. To activate any of them, open `src/tools.ts`, remove the `/* */` around the tool, and run `npm run build`. These include:
-
-- Project: delete, merge, list IDs, update preferences
-- Tasks: sort, get times, bulk import
-- Users: get details, update, archive/reactivate, get tasks, get tracking, get projects, invite
-- Customers: get details, delete, archive/reactivate
+All 54 tools are active by default. If you find this adds too much context for your AI assistant, you can clone the repo, comment out tools you don't need in `src/tools.ts` with `/* */`, and run `npm run build` to create a slimmer build.
 
 ## Testing
 
 Use [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to test tools interactively:
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/index.js
+npx @modelcontextprotocol/inspector npx trackingtime-mcp
 ```
 
 ## API Notes
