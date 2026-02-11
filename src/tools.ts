@@ -212,7 +212,7 @@ export function registerTools(server: McpServer) {
         if (user_id !== undefined) body.user_id = user_id;
         if (due_date) body.due_date = due_date;
         if (estimated_time !== undefined) body.estimated_time = estimated_time;
-        if (users) body.users = users;
+        if (users) body.users = JSON.stringify(users);
         return toolResult(await apiRequest("POST", "/tasks/share", undefined, body));
       } catch (err) {
         return errorResult(err);
@@ -253,7 +253,7 @@ export function registerTools(server: McpServer) {
         if (project_id !== undefined) body.project_id = project_id;
         if (due_date) body.due_date = due_date;
         if (estimated_time !== undefined) body.estimated_time = estimated_time;
-        if (users) body.users = users;
+        if (users) body.users = JSON.stringify(users);
         return toolResult(await apiRequest("PUT", `/tasks/update/${id}`, undefined, body));
       } catch (err) {
         return errorResult(err);
@@ -625,7 +625,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ user_id, project_ids }) => {
       try {
-        const data = project_ids.map((id) => ({ id }));
+        const data = JSON.stringify(project_ids.map((id) => ({ id })));
         return toolResult(
           await apiRequest("POST", `/users/${user_id}/assign_projects`, undefined, { data }),
         );
@@ -658,7 +658,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ user_id, project_ids }) => {
       try {
-        const data = project_ids.map((id) => ({ id }));
+        const data = JSON.stringify(project_ids.map((id) => ({ id })));
         return toolResult(
           await apiRequest("POST", `/users/${user_id}/remove_projects`, undefined, { data }),
         );
@@ -822,7 +822,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ project_ids }) => {
       try {
-        const data = project_ids.map((id) => ({ id }));
+        const data = JSON.stringify(project_ids.map((id) => ({ id })));
         return toolResult(await apiRequest("POST", "/projects/times", undefined, { data }));
       } catch (err) {
         return errorResult(err);
@@ -944,7 +944,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data }) => {
       try {
-        return toolResult(await apiRequest("POST", "/tasks/search", undefined, { data }));
+        return toolResult(await apiRequest("POST", "/tasks/search", undefined, { data: JSON.stringify(data) }));
       } catch (err) {
         return errorResult(err);
       }
@@ -1288,7 +1288,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data, by_day }) => {
       try {
-        const body: Record<string, unknown> = { data };
+        const body: Record<string, unknown> = { data: JSON.stringify(data) };
         if (by_day !== undefined) body.by_day = by_day;
         return toolResult(await apiRequest("POST", "/tasks/sort", undefined, body));
       } catch (err) {
@@ -1317,8 +1317,8 @@ export function registerTools(server: McpServer) {
     },
     async ({ task_ids }) => {
       try {
-        const data = task_ids.map((id) => ({ id }));
-        return toolResult(await apiRequest("POST", "/tasks/times", undefined, data));
+        const data = JSON.stringify(task_ids.map((id) => ({ id })));
+        return toolResult(await apiRequest("POST", "/tasks/times", undefined, { data }));
       } catch (err) {
         return errorResult(err);
       }
@@ -1355,7 +1355,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data, preview_mode }) => {
       try {
-        const body: Record<string, unknown> = { data };
+        const body: Record<string, unknown> = { data: JSON.stringify(data) };
         if (preview_mode !== undefined) body.preview_mode = preview_mode;
         return toolResult(await apiRequest("POST", "/account/import/tasks", undefined, body));
       } catch (err) {
@@ -1608,7 +1608,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ emails, project_id }) => {
       try {
-        const body: Record<string, unknown> = { emails };
+        const body: Record<string, unknown> = { emails: JSON.stringify(emails) };
         if (project_id !== undefined) body.project_id = project_id;
         return toolResult(await apiRequest("POST", "/users/invite", undefined, body));
       } catch (err) {
