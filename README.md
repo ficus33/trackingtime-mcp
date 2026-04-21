@@ -102,6 +102,8 @@ claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
 | Tool | Description |
 |------|-------------|
 | `tt_list_time_entries` | List entries by user/project/customer/task + date range |
+| `tt_list_time_entries_min` | Lighter minimal list (billed filter, timeoffs) |
+| `tt_count_time_entries` | Fast count of entries for a filter |
 | `tt_add_time_entry` | Add a manual time entry (duration in seconds) |
 | `tt_get_time_entry` | Get a single time entry |
 | `tt_update_time_entry` | Edit a time entry |
@@ -111,13 +113,31 @@ claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
 | `tt_mark_billed` | Flag entries as billed |
 | `tt_mark_not_billed` | Unflag billed entries |
 
+### Event Tags
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_tags` | List all tag definitions |
+| `tt_get_tag` | Get a single tag |
+| `tt_list_tag_values` | List values used for a tag name |
+| `tt_create_tag` | Create a tag definition |
+| `tt_update_tag` | Update a tag |
+| `tt_delete_tag` | Delete a tag definition |
+| `tt_save_event_tag` | Attach/update a tag on a time entry |
+| `tt_delete_event_tag` | Remove a tag from a time entry |
+
 ### Users & Staff
 
 | Tool | Description |
 |------|-------------|
 | `tt_list_users` | List all staff (find user IDs) |
 | `tt_get_user` | Get single user details |
+| `tt_create_user` | Create a user (replaces removed `tt_invite_users`) |
 | `tt_update_user` | Update user profile |
+| `tt_update_user_permissions` | Set granular edit/view permissions |
+| `tt_update_employee` | Update HR fields (job title, department, dates…) |
+| `tt_resend_invite` | Resend activation email to pending user |
+| `tt_reset_icalendar_token` | Rotate the user's iCal export token |
 | `tt_get_user_tasks` | List a user's tasks grouped by project |
 | `tt_get_user_tracking` | See what a user is currently tracking |
 | `tt_get_user_trackables` | All projects and tasks assigned to a user |
@@ -126,7 +146,16 @@ claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
 | `tt_remove_user_projects` | Remove staff from projects |
 | `tt_archive_user` | Deactivate a user (admin only) |
 | `tt_reactivate_user` | Reactivate an archived user |
-| `tt_invite_users` | Invite people by email |
+
+### User Groups
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_user_groups` | List groups (filter: ACTIVE/ARCHIVED/ALL) |
+| `tt_get_user_group` | Get a single group |
+| `tt_create_user_group` | Create a group (supervisor + members required) |
+| `tt_update_user_group` | Update a group (archive via `status: "ARCHIVED"`) |
+| `tt_delete_user_group` | Permanently delete a group |
 
 ### Customers
 
@@ -140,9 +169,54 @@ claude mcp add trackingtime -- node /path/to/trackingtime-mcp/dist/index.js
 | `tt_archive_customer` | Archive a customer (reversible) |
 | `tt_reactivate_customer` | Reactivate an archived customer |
 
+### Services
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_services` | List services (work categories) |
+| `tt_get_service` | Get a service |
+| `tt_create_service` | Create a new service |
+| `tt_update_service` | Update a service |
+| `tt_archive_service` | Archive a service (reversible) |
+| `tt_reactivate_service` | Reactivate an archived service |
+| `tt_delete_service` | Permanently delete a service |
+
+### Teams (Workspaces)
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_teams` | List all workspaces the user belongs to |
+| `tt_switch_team` | Switch the active workspace for the session |
+| `tt_update_team_permissions` | Update default member permissions |
+
+### Reports
+
+| Tool | Description |
+|------|-------------|
+| `tt_get_user_report` | Per-user analytics report with charts and breakdowns |
+
+### Notifications
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_notifications` | List notifications (USER or PROJECT scope) |
+| `tt_mark_notification_read` | Mark one notification as read |
+| `tt_mark_notifications_read` | Mark many notifications as read |
+
+### Webhooks
+
+| Tool | Description |
+|------|-------------|
+| `tt_list_webhooks` | List configured webhooks |
+| `tt_get_webhook` | Get a webhook |
+| `tt_enable_webhook` | Enable a webhook |
+| `tt_disable_webhook` | Disable a webhook |
+| `tt_reset_webhook_token` | Rotate a webhook's signing token |
+| `tt_delete_webhook` | Delete a webhook |
+
 ### Reducing tool count
 
-All 54 tools are active by default. If you find this adds too much context for your AI assistant, you can clone the repo, comment out tools you don't need in `src/tools.ts` with `/* */`, and run `npm run build` to create a slimmer build.
+All 93 tools are active by default. If you find this adds too much context for your AI assistant, you can clone the repo, comment out tools you don't need in `src/tools.ts` with `/* */`, and run `npm run build` to create a slimmer build.
 
 ## Testing
 

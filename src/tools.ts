@@ -212,7 +212,7 @@ export function registerTools(server: McpServer) {
         if (user_id !== undefined) body.user_id = user_id;
         if (due_date) body.due_date = due_date;
         if (estimated_time !== undefined) body.estimated_time = estimated_time;
-        if (users) body.users = JSON.stringify(users);
+        if (users) body.users = users;
         return toolResult(await apiRequest("POST", "/tasks/share", undefined, body));
       } catch (err) {
         return errorResult(err);
@@ -253,7 +253,7 @@ export function registerTools(server: McpServer) {
         if (project_id !== undefined) body.project_id = project_id;
         if (due_date) body.due_date = due_date;
         if (estimated_time !== undefined) body.estimated_time = estimated_time;
-        if (users) body.users = JSON.stringify(users);
+        if (users) body.users = users;
         return toolResult(await apiRequest("PUT", `/tasks/update/${id}`, undefined, body));
       } catch (err) {
         return errorResult(err);
@@ -625,7 +625,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ user_id, project_ids }) => {
       try {
-        const data = JSON.stringify(project_ids.map((id) => ({ id })));
+        const data = project_ids.map((id) => ({ id }));
         return toolResult(
           await apiRequest("POST", `/users/${user_id}/assign_projects`, undefined, { data }),
         );
@@ -658,7 +658,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ user_id, project_ids }) => {
       try {
-        const data = JSON.stringify(project_ids.map((id) => ({ id })));
+        const data = project_ids.map((id) => ({ id }));
         return toolResult(
           await apiRequest("POST", `/users/${user_id}/remove_projects`, undefined, { data }),
         );
@@ -822,7 +822,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ project_ids }) => {
       try {
-        const data = JSON.stringify(project_ids.map((id) => ({ id })));
+        const data = project_ids.map((id) => ({ id }));
         return toolResult(await apiRequest("POST", "/projects/times", undefined, { data }));
       } catch (err) {
         return errorResult(err);
@@ -944,7 +944,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data }) => {
       try {
-        return toolResult(await apiRequest("POST", "/tasks/search", undefined, { data: JSON.stringify(data) }));
+        return toolResult(await apiRequest("POST", "/tasks/search", undefined, { data }));
       } catch (err) {
         return errorResult(err);
       }
@@ -1288,7 +1288,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data, by_day }) => {
       try {
-        const body: Record<string, unknown> = { data: JSON.stringify(data) };
+        const body: Record<string, unknown> = { data };
         if (by_day !== undefined) body.by_day = by_day;
         return toolResult(await apiRequest("POST", "/tasks/sort", undefined, body));
       } catch (err) {
@@ -1317,7 +1317,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ task_ids }) => {
       try {
-        const data = JSON.stringify(task_ids.map((id) => ({ id })));
+        const data = task_ids.map((id) => ({ id }));
         return toolResult(await apiRequest("POST", "/tasks/times", undefined, { data }));
       } catch (err) {
         return errorResult(err);
@@ -1355,7 +1355,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ data, preview_mode }) => {
       try {
-        const body: Record<string, unknown> = { data: JSON.stringify(data) };
+        const body: Record<string, unknown> = { data };
         if (preview_mode !== undefined) body.preview_mode = preview_mode;
         return toolResult(await apiRequest("POST", "/account/import/tasks", undefined, body));
       } catch (err) {
@@ -1440,7 +1440,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ id }) => {
       try {
-        return toolResult(await apiRequest("POST", `/users/close/${id}`));
+        return toolResult(await apiRequest("PUT", `/users/close/${id}`));
       } catch (err) {
         return errorResult(err);
       }
@@ -1465,7 +1465,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ id }) => {
       try {
-        return toolResult(await apiRequest("POST", `/users/open/${id}`));
+        return toolResult(await apiRequest("PUT", `/users/open/${id}`));
       } catch (err) {
         return errorResult(err);
       }
@@ -1587,17 +1587,25 @@ export function registerTools(server: McpServer) {
     },
   );
 
-  // tt_invite_users — invite people to your TrackingTime account
+  // tt_create_user — add a new user to your account (replaces broken tt_invite_users)
   server.registerTool(
-    "tt_invite_users",
+    "tt_create_user",
     {
-      title: "Invite Users",
+      title: "Create User",
       description:
-        "Invite people to join your TrackingTime team by email. " +
-        "Max 20 emails per request. Requires admin or project manager role.",
+        "Create a new user (staff member) in your TrackingTime account. " +
+        "Requires name and role; email is optional but recommended so they can log in. " +
+        "Use tt_resend_invite afterwards if the activation email doesn't arrive. " +
+        "Requires admin role.",
       inputSchema: {
-        emails: z.array(z.string()).describe("Array of email addresses to invite"),
-        project_id: z.number().optional().describe("Auto-assign to this project"),
+        name: z.string().describe("First name (required)"),
+        role: z
+          .enum(["ADMIN", "MANAGER", "REGULAR"])
+          .describe("Role: ADMIN, MANAGER (project manager), or REGULAR"),
+        surname: z.string().optional().describe("Last name"),
+        email: z.string().optional().describe("Email address (for login/invite)"),
+        hourly_rate: z.number().optional().describe("Billable rate per hour"),
+        hourly_cost: z.number().optional().describe("Internal cost per hour"),
       },
       annotations: {
         readOnlyHint: false,
@@ -1606,11 +1614,67 @@ export function registerTools(server: McpServer) {
         openWorldHint: true,
       },
     },
-    async ({ emails, project_id }) => {
+    async ({ name, role, surname, email, hourly_rate, hourly_cost }) => {
       try {
-        const body: Record<string, unknown> = { emails: JSON.stringify(emails) };
-        if (project_id !== undefined) body.project_id = project_id;
-        return toolResult(await apiRequest("POST", "/users/invite", undefined, body));
+        const body: Record<string, unknown> = { name, role };
+        if (surname) body.surname = surname;
+        if (email) body.email = email;
+        if (hourly_rate !== undefined) body.hourly_rate = hourly_rate;
+        if (hourly_cost !== undefined) body.hourly_cost = hourly_cost;
+        return toolResult(await apiRequest("POST", "/users/add", undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // tt_resend_invite — resend the activation email for a pending user
+  server.registerTool(
+    "tt_resend_invite",
+    {
+      title: "Resend User Invite",
+      description:
+        "Resend the activation email to a pending user who hasn't registered yet. " +
+        "The email must match a user already created via tt_create_user. " +
+        "Requires admin role.",
+      inputSchema: {
+        email: z.string().describe("Email address of the pending user"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ email }) => {
+      try {
+        return toolResult(await apiRequest("POST", "/users/resend_invite", undefined, { email }));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // tt_reset_icalendar_token — rotate the user's iCal export token
+  server.registerTool(
+    "tt_reset_icalendar_token",
+    {
+      title: "Reset iCalendar Token",
+      description:
+        "Rotate the session user's iCalendar export token. " +
+        "Any existing iCal URLs will stop working until regenerated.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      try {
+        return toolResult(await apiRequest("POST", "/users/icalendar/reset_token"));
       } catch (err) {
         return errorResult(err);
       }
@@ -1686,7 +1750,7 @@ export function registerTools(server: McpServer) {
     },
     async ({ id }) => {
       try {
-        return toolResult(await apiRequest("POST", `/customers/close/${id}`));
+        return toolResult(await apiRequest("PUT", `/customers/close/${id}`));
       } catch (err) {
         return errorResult(err);
       }
@@ -1711,7 +1775,1106 @@ export function registerTools(server: McpServer) {
     },
     async ({ id }) => {
       try {
-        return toolResult(await apiRequest("POST", `/customers/open/${id}`));
+        return toolResult(await apiRequest("PUT", `/customers/open/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Services ──────────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_services",
+    {
+      title: "List Services",
+      description:
+        "List services (categories/types of work) available for projects. " +
+        "Services are used alongside customers to classify projects.",
+      inputSchema: {
+        filter: z
+          .enum(["ALL", "ACTIVE", "ARCHIVED"])
+          .optional()
+          .describe("Service filter (default: ACTIVE)"),
+        include_billing: z.boolean().optional().describe("Include billing data"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter, include_billing }) => {
+      try {
+        const params: Record<string, string> = {};
+        if (filter) params.filter = filter;
+        if (include_billing) params.include_billing = "true";
+        return toolResult(await apiRequest("GET", "/services", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_get_service",
+    {
+      title: "Get Service",
+      description: "Get a single service by ID.",
+      inputSchema: {
+        id: z.number().describe("Service ID"),
+        include_billing: z.boolean().optional().describe("Include billing data"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id, include_billing }) => {
+      try {
+        const params: Record<string, string> = {};
+        if (include_billing) params.include_billing = "true";
+        return toolResult(await apiRequest("GET", `/services/${id}`, params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_create_service",
+    {
+      title: "Create Service",
+      description:
+        "Create a new service category. Names must be unique. " +
+        "Requires admin or project manager role.",
+      inputSchema: {
+        name: z.string().describe("Service name (required, must be unique)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ name }) => {
+      try {
+        return toolResult(await apiRequest("POST", "/services/add", undefined, { name }));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_update_service",
+    {
+      title: "Update Service",
+      description: "Update an existing service.",
+      inputSchema: {
+        id: z.number().describe("Service ID"),
+        name: z.string().optional().describe("New service name"),
+        is_archived: z.boolean().optional().describe("Archive status"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id, name, is_archived }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        if (name) body.name = name;
+        if (is_archived !== undefined) body.is_archived = is_archived;
+        return toolResult(await apiRequest("PUT", `/services/update/${id}`, undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_archive_service",
+    {
+      title: "Archive Service",
+      description: "Archive a service. Can be reactivated later.",
+      inputSchema: { id: z.number().describe("Service ID to archive") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("PUT", `/services/close/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_reactivate_service",
+    {
+      title: "Reactivate Service",
+      description: "Reactivate a previously archived service.",
+      inputSchema: { id: z.number().describe("Service ID to reactivate") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("PUT", `/services/open/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_delete_service",
+    {
+      title: "Delete Service",
+      description:
+        "Permanently delete a service. Project references to it will be cleared.",
+      inputSchema: { id: z.number().describe("Service ID to delete") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("DELETE", `/services/delete/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Event tags ────────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_tags",
+    {
+      title: "List Event Tags",
+      description:
+        "List all event (time-entry) tags defined in the account. " +
+        "Tags are name/value pairs used to categorize time entries beyond project/task.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      try {
+        return toolResult(await apiRequest("GET", "/events/tags"));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_get_tag",
+    {
+      title: "Get Event Tag",
+      description: "Get a single event tag by ID.",
+      inputSchema: { id: z.number().describe("Tag ID") },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("GET", `/events/tags/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_list_tag_values",
+    {
+      title: "List Tag Values",
+      description: "List all values that have been used for a given tag name.",
+      inputSchema: { name: z.string().describe("Tag name") },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ name }) => {
+      try {
+        return toolResult(await apiRequest("GET", "/events/tags/values", { name }));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_create_tag",
+    {
+      title: "Create Event Tag",
+      description:
+        "Create a new event tag definition. " +
+        "Tags can then be attached to time entries via tt_save_event_tag.",
+      inputSchema: {
+        name: z.string().describe("Tag name (required)"),
+        value: z.string().optional().describe("Default value for this tag"),
+        type: z.string().optional().describe("Tag type"),
+        color: z.string().optional().describe("Display color"),
+        notes: z.string().optional().describe("Notes about the tag"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ name, value, type, color, notes }) => {
+      try {
+        const body: Record<string, unknown> = { name };
+        if (value !== undefined) body.value = value;
+        if (type) body.type = type;
+        if (color) body.color = color;
+        if (notes) body.notes = notes;
+        return toolResult(await apiRequest("POST", "/events/tags/add", undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_update_tag",
+    {
+      title: "Update Event Tag",
+      description: "Update an existing event tag definition.",
+      inputSchema: {
+        id: z.number().describe("Tag ID"),
+        name: z.string().optional().describe("New name"),
+        value: z.string().optional().describe("New default value"),
+        type: z.string().optional().describe("New tag type"),
+        color: z.string().optional().describe("New color"),
+        notes: z.string().optional().describe("New notes"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id, name, value, type, color, notes }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        if (name) body.name = name;
+        if (value !== undefined) body.value = value;
+        if (type) body.type = type;
+        if (color) body.color = color;
+        if (notes) body.notes = notes;
+        return toolResult(await apiRequest("PUT", `/events/tags/update/${id}`, undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_delete_tag",
+    {
+      title: "Delete Event Tag",
+      description:
+        "Permanently delete a tag definition. Removes it from all events that use it.",
+      inputSchema: { id: z.number().describe("Tag ID to delete") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("DELETE", `/events/tags/delete/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_save_event_tag",
+    {
+      title: "Attach Tag to Event",
+      description:
+        "Attach (or update) a tag on a specific time entry. " +
+        "Creates the tag definition if the name doesn't exist yet.",
+      inputSchema: {
+        event_id: z.number().describe("Time entry (event) ID"),
+        name: z.string().describe("Tag name"),
+        value: z.string().optional().describe("Tag value for this event"),
+        type: z.string().optional().describe("Tag type"),
+        color: z.string().optional().describe("Display color"),
+        notes: z.string().optional().describe("Notes"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ event_id, name, value, type, color, notes }) => {
+      try {
+        const body: Record<string, unknown> = { name };
+        if (value !== undefined) body.value = value;
+        if (type) body.type = type;
+        if (color) body.color = color;
+        if (notes) body.notes = notes;
+        return toolResult(
+          await apiRequest("POST", `/events/${event_id}/tags/save`, undefined, body),
+        );
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_delete_event_tag",
+    {
+      title: "Remove Tag from Event",
+      description: "Remove a specific tag from a time entry by tag name.",
+      inputSchema: {
+        event_id: z.number().describe("Time entry ID"),
+        name: z.string().describe("Tag name to remove"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ event_id, name }) => {
+      try {
+        return toolResult(
+          await apiRequest("DELETE", `/events/${event_id}/tags/delete`, { name }),
+        );
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── User Groups ───────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_user_groups",
+    {
+      title: "List User Groups",
+      description:
+        "List user groups (teams/departments) in the account. " +
+        "Groups let you organize staff by team, department, or role.",
+      inputSchema: {
+        filter: z
+          .enum(["ALL", "ACTIVE", "ARCHIVED"])
+          .optional()
+          .describe("Group filter (default: ACTIVE)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter }) => {
+      try {
+        const params: Record<string, string> = {};
+        if (filter) params.filter = filter;
+        return toolResult(await apiRequest("GET", "/users/groups", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_get_user_group",
+    {
+      title: "Get User Group",
+      description: "Get a single user group by ID.",
+      inputSchema: { id: z.number().describe("Group ID") },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("GET", `/users/groups/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_create_user_group",
+    {
+      title: "Create User Group",
+      description:
+        "Create a new user group. Both supervisor_id and users are required by the API. " +
+        "Use status='ARCHIVED' (or update_user_group later) to archive — there's no separate close endpoint. " +
+        "Requires admin or project manager role.",
+      inputSchema: {
+        name: z.string().describe("Group name (required)"),
+        supervisor_id: z.number().describe("User ID of the group supervisor (required)"),
+        users: z
+          .array(
+            z.object({
+              id: z.number(),
+              action: z.enum(["ADD", "REMOVE"]).optional(),
+            }),
+          )
+          .min(1)
+          .describe(
+            'Members (at least one required), e.g. [{"id":1,"action":"ADD"}]',
+          ),
+        notes: z.string().optional().describe("Notes about the group"),
+        status: z
+          .enum(["ACTIVE", "ARCHIVED"])
+          .optional()
+          .describe("Status (default: ACTIVE)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ name, supervisor_id, users, notes, status }) => {
+      try {
+        const body: Record<string, unknown> = { name, supervisor_id, users };
+        if (notes) body.notes = notes;
+        if (status) body.status = status;
+        return toolResult(await apiRequest("POST", "/users/groups/add", undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_update_user_group",
+    {
+      title: "Update User Group",
+      description:
+        "Update an existing user group. " +
+        "To archive a group set status='ARCHIVED'; to restore set status='ACTIVE'.",
+      inputSchema: {
+        id: z.number().describe("Group ID to update"),
+        name: z.string().optional().describe("New group name"),
+        notes: z.string().optional().describe("New notes"),
+        status: z
+          .enum(["ACTIVE", "ARCHIVED"])
+          .optional()
+          .describe("New status — use ARCHIVED to deactivate"),
+        supervisor_id: z.number().optional().describe("New supervisor user ID"),
+        users: z
+          .array(
+            z.object({
+              id: z.number(),
+              action: z.enum(["ADD", "REMOVE"]).optional(),
+            }),
+          )
+          .optional()
+          .describe("Members to add/remove"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id, name, notes, status, supervisor_id, users }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        if (name) body.name = name;
+        if (notes) body.notes = notes;
+        if (status) body.status = status;
+        if (supervisor_id !== undefined) body.supervisor_id = supervisor_id;
+        if (users) body.users = users;
+        return toolResult(await apiRequest("PUT", `/users/groups/update/${id}`, undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_delete_user_group",
+    {
+      title: "Delete User Group",
+      description: "Permanently delete a user group.",
+      inputSchema: { id: z.number().describe("Group ID to delete") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("DELETE", `/users/groups/delete/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Teams (workspaces) ────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_teams",
+    {
+      title: "List Teams",
+      description:
+        "List all workspaces (teams) the session user belongs to. " +
+        "Each team has its own account_id — useful for multi-workspace users.",
+      inputSchema: {},
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async () => {
+      try {
+        return toolResult(await apiRequest("GET", "/teams"));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_switch_team",
+    {
+      title: "Switch Team",
+      description:
+        "Switch the active workspace for the current session. " +
+        "Subsequent requests will operate against the new team's data.",
+      inputSchema: {
+        account_id: z.number().describe("Account ID of the team to switch to"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ account_id }) => {
+      try {
+        return toolResult(
+          await apiRequest("POST", "/teams/switch", undefined, { account_id }),
+        );
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_update_team_permissions",
+    {
+      title: "Update Team Permissions",
+      description:
+        "Update default permissions for a workspace's members. " +
+        "Admin-only. Controls what non-admin users can see and edit.",
+      inputSchema: {
+        id: z.number().describe("Team (account) ID"),
+        can_edit_time_entries: z.boolean().optional(),
+        can_edit_projects_and_tasks: z.boolean().optional(),
+        can_view_time_entries_from_others: z.boolean().optional(),
+        can_view_others: z.boolean().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id, ...flags }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(flags)) {
+          if (v !== undefined) body[k] = v;
+        }
+        return toolResult(await apiRequest("POST", `/teams/update/${id}`, undefined, body));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Webhooks (read/manage; create & update omitted pending schema confirmation) ──
+
+  server.registerTool(
+    "tt_list_webhooks",
+    {
+      title: "List Webhooks",
+      description: "List configured webhooks.",
+      inputSchema: {
+        filter: z
+          .enum(["ALL", "ENABLED", "DISABLED", "ACTIVE"])
+          .optional()
+          .describe("Webhook filter"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter }) => {
+      try {
+        const params: Record<string, string> = {};
+        if (filter) params.filter = filter;
+        return toolResult(await apiRequest("GET", "/webhooks", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_get_webhook",
+    {
+      title: "Get Webhook",
+      description: "Get a single webhook by ID.",
+      inputSchema: { id: z.number().describe("Webhook ID") },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("GET", `/webhooks/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_enable_webhook",
+    {
+      title: "Enable Webhook",
+      description: "Enable a disabled webhook.",
+      inputSchema: { id: z.number().describe("Webhook ID") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("PUT", `/webhooks/enable/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_disable_webhook",
+    {
+      title: "Disable Webhook",
+      description: "Disable an active webhook without deleting it.",
+      inputSchema: { id: z.number().describe("Webhook ID") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("PUT", `/webhooks/disable/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_reset_webhook_token",
+    {
+      title: "Reset Webhook Token",
+      description:
+        "Rotate the signing/auth token for a webhook. " +
+        "Existing subscribers must be updated with the new token.",
+      inputSchema: { id: z.number().describe("Webhook ID") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("POST", `/webhooks/reset_token/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_delete_webhook",
+    {
+      title: "Delete Webhook",
+      description: "Permanently delete a webhook.",
+      inputSchema: { id: z.number().describe("Webhook ID") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("DELETE", `/webhooks/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Notifications ─────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_notifications",
+    {
+      title: "List Notifications",
+      description:
+        "List notifications filtered by USER or PROJECT scope. " +
+        "By default only unread notifications are returned.",
+      inputSchema: {
+        filter: z.enum(["USER", "PROJECT"]).describe("Filter scope"),
+        id: z.number().describe("User ID or Project ID matching the filter"),
+        include_read: z.boolean().optional().describe("Include already-read notifications"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter, id, include_read }) => {
+      try {
+        const params: Record<string, string> = { filter, id: String(id) };
+        if (include_read) params.include_read = "true";
+        return toolResult(await apiRequest("GET", "/notifications", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_mark_notification_read",
+    {
+      title: "Mark Notification as Read",
+      description: "Mark a single notification as read.",
+      inputSchema: { id: z.number().describe("Notification ID") },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ id }) => {
+      try {
+        return toolResult(await apiRequest("PUT", `/notifications/read/${id}`));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_mark_notifications_read",
+    {
+      title: "Mark Notifications as Read (Bulk)",
+      description: "Mark multiple notifications as read in one call.",
+      inputSchema: {
+        notification_ids: z
+          .array(z.number())
+          .describe("Array of notification IDs, e.g. [1, 2, 3]"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ notification_ids }) => {
+      try {
+        const data = notification_ids.map((id) => ({ id }));
+        return toolResult(await apiRequest("POST", "/notifications/read", undefined, { data }));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Reports ───────────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_get_user_report",
+    {
+      title: "Get User Report",
+      description:
+        "Get an analytics report for a user over a date range. " +
+        "Returns charts, metadata, and detailed breakdowns of tracked time. " +
+        "Admin or project manager role required.",
+      inputSchema: {
+        user_id: z.number().describe("User ID to report on"),
+        from: z.string().describe("Start date (YYYY-MM-DD)"),
+        to: z.string().describe("End date (YYYY-MM-DD)"),
+        sort_by: z
+          .enum(["NAME", "WORKED_HOURS"])
+          .optional()
+          .describe("Sort order (default: NAME)"),
+        filter: z
+          .enum(["ALL", "ACTIVE", "ARCHIVED"])
+          .optional()
+          .describe("Scope filter (default: ACTIVE)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ user_id, from, to, sort_by, filter }) => {
+      try {
+        const params: Record<string, string> = { from, to };
+        if (sort_by) params.sort_by = sort_by;
+        if (filter) params.filter = filter;
+        return toolResult(await apiRequest("GET", `/reports/users/${user_id}`, params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── Time entry extras ─────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_list_time_entries_min",
+    {
+      title: "List Time Entries (Minimal)",
+      description:
+        "List time entries in a minimal/compact form — lighter than tt_list_time_entries. " +
+        "Useful for fetching large ranges quickly when you don't need full detail.",
+      inputSchema: {
+        filter: z
+          .enum(["USER", "CUSTOMER", "PROJECT", "COMPANY", "TASK"])
+          .describe("Filter scope"),
+        id: z.number().optional().describe("Entity ID (required unless filter=COMPANY)"),
+        from: z.string().describe("Start date (YYYY-MM-DD)"),
+        to: z.string().describe("End date (YYYY-MM-DD)"),
+        billed: z
+          .enum(["ALL", "BILLED", "UNBILLED"])
+          .optional()
+          .describe("Billing filter"),
+        include_timeoffs: z.boolean().optional().describe("Include time-off entries"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter, id, from, to, billed, include_timeoffs }) => {
+      try {
+        const params: Record<string, string> = { filter, from, to };
+        if (id !== undefined) params.id = String(id);
+        if (billed) params.billed = billed;
+        if (include_timeoffs) params.include_timeoffs = "true";
+        return toolResult(await apiRequest("GET", "/events/min", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_count_time_entries",
+    {
+      title: "Count Time Entries",
+      description:
+        "Return just the count of time entries matching a filter. " +
+        "Fast alternative to fetching the full list when you only need a total.",
+      inputSchema: {
+        filter: z
+          .enum(["USER", "CUSTOMER", "PROJECT", "COMPANY", "TASK"])
+          .describe("Filter scope"),
+        id: z.number().optional().describe("Entity ID (required unless filter=COMPANY)"),
+        from: z.string().describe("Start date (YYYY-MM-DD)"),
+        to: z.string().describe("End date (YYYY-MM-DD)"),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ filter, id, from, to }) => {
+      try {
+        const params: Record<string, string> = { filter, from, to };
+        if (id !== undefined) params.id = String(id);
+        return toolResult(await apiRequest("GET", "/events/count", params));
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  // ── User extras ───────────────────────────────────────────────────
+
+  server.registerTool(
+    "tt_update_user_permissions",
+    {
+      title: "Update User Permissions",
+      description:
+        "Update granular permissions for a user (what they can edit/view). " +
+        "Admin only. Does not change role — just permission flags.",
+      inputSchema: {
+        user_id: z.number().describe("User ID"),
+        can_edit_time_entries: z.boolean().optional(),
+        can_edit_projects_and_tasks: z.boolean().optional(),
+        can_view_time_entries_from_others: z.boolean().optional(),
+        can_view_others: z.boolean().optional(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ user_id, ...flags }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(flags)) {
+          if (v !== undefined) body[k] = v;
+        }
+        return toolResult(
+          await apiRequest("POST", `/users/update_permissions/${user_id}`, undefined, body),
+        );
+      } catch (err) {
+        return errorResult(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "tt_update_employee",
+    {
+      title: "Update Employee Details",
+      description:
+        "Update HR/employee fields on a user: job title, department, location, " +
+        "employment status, tax id, phone, hire/termination dates, etc. Admin only.",
+      inputSchema: {
+        user_id: z.number().describe("User ID"),
+        name: z.string().optional().describe("Employee legal name"),
+        nr: z.string().optional().describe("Employee number/code"),
+        employment_status: z
+          .string()
+          .optional()
+          .describe("Employment status (e.g. FULL_TIME, PART_TIME, CONTRACTOR)"),
+        gender: z.string().optional().describe("Gender"),
+        tax_id: z.string().optional().describe("Tax identification number"),
+        phone: z.string().optional().describe("Phone number"),
+        job_title: z.string().optional().describe("Job title"),
+        department: z.string().optional().describe("Department"),
+        location: z.string().optional().describe("Work location"),
+        notes: z.string().optional().describe("HR notes"),
+        birthdate: z.string().optional().describe("Birthdate (YYYY-MM-DD)"),
+        hire_date: z.string().optional().describe("Hire date (YYYY-MM-DD)"),
+        termination_date: z.string().optional().describe("Termination date (YYYY-MM-DD)"),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    async ({ user_id, ...fields }) => {
+      try {
+        const body: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(fields)) {
+          if (v !== undefined) body[k] = v;
+        }
+        return toolResult(
+          await apiRequest("POST", `/users/${user_id}/employee/update`, undefined, body),
+        );
       } catch (err) {
         return errorResult(err);
       }
